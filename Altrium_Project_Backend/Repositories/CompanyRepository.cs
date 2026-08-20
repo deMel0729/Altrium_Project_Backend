@@ -78,6 +78,7 @@ namespace Altrium_Project_Backend.Repositories
 
         private static void AddParams(SqlCommand cmd, Company c)
         {
+            cmd.Parameters.AddWithValue("name", c.CompanyName);
             cmd.Parameters.AddWithValue("industry", c.Industry);
             cmd.Parameters.AddWithValue("website", c.Website);
             cmd.Parameters.AddWithValue("phone", c.Phone);
@@ -89,9 +90,10 @@ namespace Altrium_Project_Backend.Repositories
         private static Company Map(SqlDataReader r) => new()
         {
             Id = r.GetIntCol("company_id"),
+            CompanyName = r.GetStringCol("company_name"),
             Industry = r.GetStringCol("industry"),
             Website = r.GetStringCol("website_link"),
-            Phone = r.GetIntCol("phone_num"),
+            Phone = r.GetStringCol("phone_num"),
             Address = r.GetStringCol("addressd"),
             Email = r.GetStringCol("email"),
             UserId = r.GetIntCol("user_id"),
