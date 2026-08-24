@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿// written by malan
+using System.Text.Json.Serialization;
 
 namespace Altrium_Project_Backend.Models
 {
