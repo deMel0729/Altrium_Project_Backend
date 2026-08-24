@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.SqlClient;
+﻿// written by the whole team 
+using Microsoft.Data.SqlClient;
 
 namespace Altrium_Project_Backend.Data
 {

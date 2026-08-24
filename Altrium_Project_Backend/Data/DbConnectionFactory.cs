@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.SqlClient;
+﻿// written by the whole team 
+using Microsoft.Data.SqlClient;
 using System.Security.Cryptography.X509Certificates;
 namespace Altrium_Project_Backend.Data
 

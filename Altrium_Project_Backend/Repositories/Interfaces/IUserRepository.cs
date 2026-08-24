@@ -1,4 +1,5 @@
-﻿using Altrium_Project_Backend.Models;
+﻿// written by malan
+using Altrium_Project_Backend.Models;
 namespace Altrium_Project_Backend.Repositories.Interfaces
 {
     public interface IUserRepository

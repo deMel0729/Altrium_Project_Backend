@@ -1,4 +1,5 @@
-﻿namespace Altrium_Project_Backend.Models
+﻿// written by malan
+namespace Altrium_Project_Backend.Models
 {
     public class FollowUp
     {
