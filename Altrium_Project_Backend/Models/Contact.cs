@@ -1,4 +1,5 @@
-﻿namespace Altrium_Project_Backend.Models
+﻿//Written by Shahmi//
+namespace Altrium_Project_Backend.Models
 {
     public class Contact
     {
