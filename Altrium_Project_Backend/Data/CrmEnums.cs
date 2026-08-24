@@ -1,4 +1,5 @@
-﻿namespace Altrium_Project_Backend.Data
+﻿// written by the whole team 
+namespace Altrium_Project_Backend.Data
 {
     public static class CrmEnums
     {
