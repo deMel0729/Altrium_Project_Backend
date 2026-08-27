@@ -15,7 +15,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("dev", policy =>
         policy.WithOrigins(
             "http://localhost:5173",
-            "https://kind-tree-05024de00.7.azurestaticapps.net/"
+            "https://kind-tree-05024de00.7.azurestaticapps.net"
         )
               .AllowAnyHeader()
               .AllowAnyMethod());
