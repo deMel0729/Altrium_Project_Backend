@@ -49,6 +49,8 @@ app.UseCors("dev");
 
 app.UseAuthorization();
 
+app.MapGet("/", () => Results.Redirect("/swagger")); 
+
 app.MapControllers();
 
 app.Run();
