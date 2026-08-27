@@ -4,12 +4,20 @@ using Altrium_Project_Backend.Repositories.Interfaces;
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+
+
 // Adding the Controllers 
 builder.Services.AddControllers();
 
-// Add services to the container.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("dev", policy =>
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
 
-builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -37,6 +45,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("dev");
 
 app.UseAuthorization();
 
