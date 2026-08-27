@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Adding the Controllers 
 builder.Services.AddControllers();
-
+// added CORS policy to allow requests from the frontend
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("dev", policy =>
