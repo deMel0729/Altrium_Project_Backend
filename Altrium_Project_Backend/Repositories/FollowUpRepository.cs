@@ -19,8 +19,7 @@ namespace Altrium_Project_Backend.Repositories
         {
             var sql = $"SELECT {Cols} FROM dbo.follow_ups WHERE is_active = 1 AND (@owner IS NULL OR user_id = @owner) ORDER BY follow_up_id;";
             var list = new List<FollowUp>();
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
@@ -31,8 +30,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<FollowUp?> GetByIdAsync(int id, int? ownerId)
         {
             var sql = $"SELECT {Cols} FROM dbo.follow_ups WHERE follow_up_id=@id AND is_active = 1 AND (@owner IS NULL OR user_id = @owner);";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
@@ -46,8 +44,7 @@ namespace Altrium_Project_Backend.Repositories
             INSERT INTO dbo.follow_ups (user_id, deal_id, company_id, lead_id, due_date, note, completed, is_active, created_at)
             OUTPUT INSERTED.follow_up_id
             VALUES (@user_id, @deal_id, @company_id, @lead_id, @due_date, @note, @completed, @is_active, @created_at);";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             AddParams(cmd, f);
             cmd.Parameters.AddWithValue("created_at", DateTime.UtcNow);
@@ -61,8 +58,7 @@ namespace Altrium_Project_Backend.Repositories
             SET user_id=@user_id, deal_id=@deal_id, company_id=@company_id, lead_id=@lead_id,
                 due_date=@due_date, note=@note, completed=@completed, is_active=@is_active
             WHERE follow_up_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", f.Id);
             AddParams(cmd, f);
@@ -72,8 +68,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<bool> DeleteAsync(int id)
         {
             const string sql = "UPDATE dbo.follow_ups SET is_active = 0 WHERE follow_up_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             return await cmd.ExecuteNonQueryAsync() > 0;

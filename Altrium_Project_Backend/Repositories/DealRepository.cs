@@ -21,8 +21,7 @@ namespace Altrium_Project_Backend.Repositories
         {
             var sql = $"SELECT {Cols} FROM dbo.Deals WHERE is_active = 1 AND (@owner IS NULL OR user_id = @owner) ORDER BY deal_id;";
             var list = new List<Deal>();
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
@@ -33,8 +32,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<Deal?> GetByIdAsync(int id, int? ownerId)
         {
             var sql = $"SELECT {Cols} FROM dbo.Deals WHERE deal_id=@id AND is_active = 1 AND (@owner IS NULL OR user_id = @owner);";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
@@ -48,8 +46,7 @@ namespace Altrium_Project_Backend.Repositories
             INSERT INTO dbo.Deals (company_id, contact_id, user_id, lead_id, deal_name, deal_value, stage, expected_close_date, is_active, created_at)
             OUTPUT INSERTED.deal_id
             VALUES (@company_id, @contact_id, @user_id, @lead_id, @name, @value, @stage, @expected_close_date, @is_active, @created_at);";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             AddParams(cmd, d);
             cmd.Parameters.AddWithValue("created_at", DateTime.UtcNow);
@@ -64,8 +61,7 @@ namespace Altrium_Project_Backend.Repositories
                 deal_name=@name, deal_value=@value, stage=@stage, expected_close_date=@expected_close_date,
                 is_active=@is_active
             WHERE deal_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", d.Id);
             AddParams(cmd, d);
@@ -75,8 +71,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<bool> DeleteAsync(int id)
         {
             const string sql = "UPDATE dbo.Deals SET is_active = 0 WHERE deal_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             return await cmd.ExecuteNonQueryAsync() > 0;

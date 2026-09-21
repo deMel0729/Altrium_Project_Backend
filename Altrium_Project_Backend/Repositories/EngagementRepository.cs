@@ -19,8 +19,7 @@ namespace Altrium_Project_Backend.Repositories
         {
             var sql = $"SELECT {Cols} FROM dbo.Engagement WHERE is_active = 1 AND (@owner IS NULL OR user_id = @owner) ORDER BY enagagement_id;";
             var list = new List<Engagement>();
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
@@ -31,8 +30,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<Engagement?> GetByIdAsync(int id, int? ownerId)
         {
             var sql = $"SELECT {Cols} FROM dbo.Engagement WHERE enagagement_id=@id AND is_active = 1 AND (@owner IS NULL OR user_id = @owner);";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
@@ -46,8 +44,7 @@ namespace Altrium_Project_Backend.Repositories
             INSERT INTO dbo.Engagement (user_id, company_id, deal_id, engagement_name, engagement_type, engagement_description, is_active, created_at)
             OUTPUT INSERTED.enagagement_id
             VALUES (@user_id, @company_id, @deal_id, @name, @type, @description, @is_active, @created_at);";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             AddParams(cmd, e);
             cmd.Parameters.AddWithValue("created_at", DateTime.UtcNow);
@@ -61,8 +58,7 @@ namespace Altrium_Project_Backend.Repositories
             SET user_id=@user_id, company_id=@company_id, deal_id=@deal_id, engagement_name=@name,
                 engagement_type=@type, engagement_description=@description, is_active=@is_active
             WHERE enagagement_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", e.Id);
             AddParams(cmd, e);
@@ -72,8 +68,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<bool> DeleteAsync(int id)
         {
             const string sql = "UPDATE dbo.Engagement SET is_active = 0 WHERE enagagement_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             return await cmd.ExecuteNonQueryAsync() > 0;

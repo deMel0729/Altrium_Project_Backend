@@ -18,8 +18,7 @@ namespace Altrium_Project_Backend.Repositories
         {
             var sql = $"SELECT {Cols} FROM dbo.Leads WHERE is_active = 1 AND (@owner IS NULL OR user_id = @owner) ORDER BY lead_id;";
             var list = new List<Lead>();
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
@@ -30,8 +29,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<Lead?> GetByIdAsync(int id, int? ownerId)
         {
             var sql = $"SELECT {Cols} FROM dbo.Leads WHERE lead_id=@id AND is_active = 1 AND (@owner IS NULL OR user_id = @owner);";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
@@ -45,8 +43,7 @@ namespace Altrium_Project_Backend.Repositories
             INSERT INTO dbo.Leads (company_id, contact_id, user_id, lead_name, source, status, score, is_active, created_at, updated_at)
             OUTPUT INSERTED.lead_id
             VALUES (@company_id, @contact_id, @user_id, @name, @source, @status, @score, @is_active, @created_at, @updated_at);";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             AddParams(cmd, l);
             var now = DateTime.UtcNow;
@@ -62,8 +59,7 @@ namespace Altrium_Project_Backend.Repositories
             SET company_id=@company_id, contact_id=@contact_id, user_id=@user_id, lead_name=@name,
                 source=@source, status=@status, score=@score, is_active=@is_active, updated_at=@updated_at
             WHERE lead_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", l.Id);
             AddParams(cmd, l);
@@ -74,8 +70,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<bool> DeleteAsync(int id)
         {
             const string sql = "UPDATE dbo.Leads SET is_active = 0, updated_at = @updated_at WHERE lead_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             cmd.Parameters.AddWithValue("updated_at", DateTime.UtcNow);

@@ -18,8 +18,7 @@ namespace Altrium_Project_Backend.Repositories
         {
             var sql = $"SELECT {Cols} FROM dbo.Company WHERE is_active = 1 AND (@owner IS NULL OR user_id = @owner) ORDER BY company_id;";
             var list = new List<Company>();
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
@@ -32,8 +31,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<Company?> GetByIdAsync(int id, int? ownerId)
         {
             var sql = $"SELECT {Cols} FROM dbo.Company WHERE company_id=@id AND is_active = 1 AND (@owner IS NULL OR user_id = @owner);";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
@@ -47,8 +45,7 @@ namespace Altrium_Project_Backend.Repositories
             INSERT INTO dbo.Company (company_name, industry, website_link, phone_num, addressd, email, user_id, is_active, created_at)
             OUTPUT INSERTED.company_id
             VALUES (@name, @industry, @website, @phone, @address, @email, @owner_id, @is_active, @created_at);";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             AddParams(cmd, c);
             cmd.Parameters.AddWithValue("created_at", DateTime.UtcNow);
@@ -62,8 +59,7 @@ namespace Altrium_Project_Backend.Repositories
             SET company_name=@name, industry=@industry, website_link=@website, phone_num=@phone,
                 addressd=@address, email=@email, user_id=@owner_id, is_active=@is_active
             WHERE company_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", c.Id);
             AddParams(cmd, c);
@@ -73,8 +69,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<bool> DeleteAsync(int id)
         {
             const string sql = "UPDATE dbo.Company SET is_active = 0 WHERE company_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             return await cmd.ExecuteNonQueryAsync() > 0;

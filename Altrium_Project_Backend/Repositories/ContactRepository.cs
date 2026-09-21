@@ -22,8 +22,7 @@ namespace Altrium_Project_Backend.Repositories
         {
             var sql = $"SELECT {Cols} FROM dbo.Contact WHERE is_active = 1{OwnerScope} ORDER BY contact_id;";
             var list = new List<Contact>();
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
@@ -34,8 +33,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<Contact?> GetByIdAsync(int id, int? ownerId)
         {
             var sql = $"SELECT {Cols} FROM dbo.Contact WHERE contact_id=@id AND is_active = 1{OwnerScope};";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
@@ -49,8 +47,7 @@ namespace Altrium_Project_Backend.Repositories
             INSERT INTO dbo.Contact (company_id, contact_name, email, position, phone_num, is_active, created_at)
             OUTPUT INSERTED.contact_id
             VALUES (@company_id, @name, @email, @position, @phone, @is_active, @created_at);";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             AddParams(cmd, c);
             cmd.Parameters.AddWithValue("created_at", DateTime.UtcNow);
@@ -64,8 +61,7 @@ namespace Altrium_Project_Backend.Repositories
             SET company_id=@company_id, contact_name=@name, email=@email, position=@position,
                 phone_num=@phone, is_active=@is_active
             WHERE contact_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", c.Id);
             AddParams(cmd, c);
@@ -75,8 +71,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<bool> DeleteAsync(int id)
         {
             const string sql = "UPDATE dbo.Contact SET is_active = 0 WHERE contact_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             return await cmd.ExecuteNonQueryAsync() > 0;

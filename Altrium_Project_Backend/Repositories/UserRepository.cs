@@ -19,8 +19,7 @@ namespace Altrium_Project_Backend.Repositories
         {
             var sql = $"SELECT {Cols} FROM dbo.[User] WHERE is_active = 1 ORDER BY user_id;";
             var list = new List<User>();
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             await using var r = await cmd.ExecuteReaderAsync();
             while (await r.ReadAsync()) list.Add(Map(r));
@@ -30,8 +29,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<User?> GetByIdAsync(int id)
         {
             var sql = $"SELECT {Cols} FROM dbo.[User] WHERE user_id=@id AND is_active = 1;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             await using var r = await cmd.ExecuteReaderAsync();
@@ -44,8 +42,7 @@ namespace Altrium_Project_Backend.Repositories
             INSERT INTO dbo.[User] (name, email, password_hash, user_role, is_active, created_at, updated_at)
             OUTPUT INSERTED.user_id
             VALUES (@name, @email, @password_hash, @user_role, @is_active, @created_at, @updated_at);";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             AddParams(cmd, u);
             var now = DateTime.UtcNow;
@@ -63,8 +60,7 @@ namespace Altrium_Project_Backend.Repositories
             SET name=@name, email=@email, password_hash=COALESCE(@password_hash, password_hash),
                 user_role=@user_role, is_active=@is_active, updated_at=@updated_at
             WHERE user_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", u.Id);
             AddParams(cmd, u);
@@ -77,8 +73,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<bool> DeleteAsync(int id)
         {
             const string sql = "UPDATE dbo.[User] SET is_active = 0, updated_at = @updated_at WHERE user_id=@id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
             cmd.Parameters.AddWithValue("updated_at", DateTime.UtcNow);
@@ -94,8 +89,7 @@ namespace Altrium_Project_Backend.Repositories
             const string sql = @"
             SELECT user_id, name, email, password_hash, user_role, is_active, created_at, updated_at
             FROM dbo.[User] WHERE email = @email;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("email", email);
             await using var r = await cmd.ExecuteReaderAsync();
@@ -109,8 +103,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<bool> EmailExistsAsync(string email, int? excludingUserId = null)
         {
             const string sql = "SELECT TOP 1 1 FROM dbo.[User] WHERE email = @email AND (@exclude IS NULL OR user_id <> @exclude);";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("email", email);
             cmd.Parameters.AddWithValue("exclude", DbHelpers.Nullable(excludingUserId));
@@ -120,8 +113,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<bool> UpdatePasswordHashAsync(int userId, string passwordHash)
         {
             const string sql = "UPDATE dbo.[User] SET password_hash = @hash, updated_at = @updated_at WHERE user_id = @id;";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", userId);
             cmd.Parameters.AddWithValue("hash", passwordHash);
@@ -134,8 +126,7 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<bool> AnyUsablePasswordAsync()
         {
             const string sql = "SELECT TOP 1 1 FROM dbo.[User] WHERE password_hash LIKE 'PBKDF2$%';";
-            await using var conn = _factory.Create();
-            await conn.OpenAsync();
+            await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             return await cmd.ExecuteScalarAsync() is not null;
         }
