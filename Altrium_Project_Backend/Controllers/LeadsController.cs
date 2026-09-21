@@ -1,12 +1,15 @@
-﻿// written by malan
+// written by malan
 using Altrium_Project_Backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Altrium_Project_Backend.Models;
 using Altrium_Project_Backend.Data;
+using Altrium_Project_Backend.Security;
+using Microsoft.AspNetCore.Authorization;
 namespace Altrium_Project_Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class LeadsController : ControllerBase
     {
         private readonly ILeadRepository _leadRepository;
@@ -15,14 +18,14 @@ namespace Altrium_Project_Backend.Controllers
         [HttpGet]
         public async Task<ActionResult<List<Lead>>> GetAll()
         {
-            var leads = await _leadRepository.GetAllAsync();
+            var leads = await _leadRepository.GetAllAsync(User.OwnerFilter());
             return leads is null ? NotFound() : Ok(leads);
         }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<Lead>> GetById(int id)
         {
-            var item = await _leadRepository.GetByIdAsync(id);
+            var item = await _leadRepository.GetByIdAsync(id, User.OwnerFilter());
             return item is null ? NotFound() : Ok(item);
         }
 
@@ -31,6 +34,9 @@ namespace Altrium_Project_Backend.Controllers
         {
             var invalid = Validate(input);
             if (invalid is not null) return BadRequest(invalid);
+
+            // "Assign lead to a rep" is a manager's job; a rep's leads are their own.
+            input.UserId = User.OwnerForNewRecord(input.UserId);
 
             input.Id = await _leadRepository.CreateAsync(input);
             return CreatedAtAction(nameof(GetById), new { id = input.Id }, input);
@@ -44,8 +50,15 @@ namespace Altrium_Project_Backend.Controllers
             var invalid = Validate(input);
             if (invalid is not null) return BadRequest(invalid);
 
+            var existing = await _leadRepository.GetByIdAsync(id, User.OwnerFilter());
+            if (existing is null) return NotFound();
+
+            input.UserId = User.SeesEverything()
+                ? (input.UserId > 0 ? input.UserId : existing.UserId)
+                : existing.UserId;
+
             if (!await _leadRepository.UpdateAsync(input)) return NotFound();
-            var updatedLead = await _leadRepository.GetByIdAsync(id);
+            var updatedLead = await _leadRepository.GetByIdAsync(id, User.OwnerFilter());
 
             return updatedLead is null ? NotFound() : Ok(updatedLead);
         }
@@ -53,6 +66,9 @@ namespace Altrium_Project_Backend.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
+            var existing = await _leadRepository.GetByIdAsync(id, User.OwnerFilter());
+            if (existing is null) return NotFound();
+
             return await _leadRepository.DeleteAsync(id) ? NoContent() : NotFound();
         }
 

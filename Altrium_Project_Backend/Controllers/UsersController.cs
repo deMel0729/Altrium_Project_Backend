@@ -1,17 +1,24 @@
-﻿// written by malan
+// written by malan
 using Altrium_Project_Backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Altrium_Project_Backend.Models;
+using Altrium_Project_Backend.Models.Auth;
 using Altrium_Project_Backend.Data;
+using Altrium_Project_Backend.Security;
+using Microsoft.AspNetCore.Authorization;
 namespace Altrium_Project_Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class UsersController : ControllerBase
     {
         private readonly IUserRepository _userRepository;
         public UsersController(IUserRepository userRepository) => _userRepository = userRepository;
 
+        // Reading the team list is fine for everyone signed in - the repository never
+        // selects password_hash, so nothing sensitive is exposed. Owner drop-downs and
+        // the Team page both need it.
         [HttpGet]
         public async Task<ActionResult<List<User>>> GetAll()
         {
@@ -26,41 +33,79 @@ namespace Altrium_Project_Backend.Controllers
             return item is null ? NotFound() : Ok(item);
         }
 
+        // Creating, changing and deactivating accounts is administration: leadership
+        // only. Without this, any signed-in rep could create themselves a LEADERSHIP
+        // account and own the whole system.
+        [Authorize(Roles = Roles.Leadership)]
         [HttpPost]
-        public async Task<ActionResult<User>> Create(User input)
+        public async Task<ActionResult<User>> Create(UserWriteRequest input)
         {
-            var invalid = Validate(input);
+            var invalid = Validate(input.UserRole);
             if (invalid is not null) return BadRequest(invalid);
 
-            input.Id = await _userRepository.CreateAsync(input);
-            input.PasswordHash = null;   // never echo the hash back
-            return CreatedAtAction(nameof(GetById), new { id = input.Id }, input);
+            var email = input.Email.Trim();
+            if (await _userRepository.EmailExistsAsync(email))
+                return Conflict("That email address is already registered.");
+
+            var user = new User
+            {
+                Name = input.Name.Trim(),
+                Email = email,
+                UserRole = input.UserRole,
+                IsActive = input.IsActive,
+                // No password is set here. The account cannot sign in until leadership
+                // gives it one through POST /api/auth/users/{id}/reset-password, or it
+                // is created directly through POST /api/auth/register.
+                PasswordHash = "NO-LOGIN",
+            };
+
+            user.Id = await _userRepository.CreateAsync(user);
+            user.PasswordHash = null;   // never echo the hash back
+            return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
         }
 
+        [Authorize(Roles = Roles.Leadership)]
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, User input)
+        public async Task<IActionResult> Update(int id, UserWriteRequest input)
         {
-            if (id != input.Id) return BadRequest("Route id and body id do not match.");
-
-            var invalid = Validate(input);
+            var invalid = Validate(input.UserRole);
             if (invalid is not null) return BadRequest(invalid);
 
-            if (!await _userRepository.UpdateAsync(input)) return NotFound();
+            var existing = await _userRepository.GetByIdAsync(id);
+            if (existing is null) return NotFound();
+
+            var email = input.Email.Trim();
+            if (await _userRepository.EmailExistsAsync(email, id))
+                return Conflict("That email address is already registered.");
+
+            // Binding to a DTO instead of User is the point: a request cannot carry a
+            // password hash, and role changes stay an administrative act.
+            existing.Name = input.Name.Trim();
+            existing.Email = email;
+            existing.UserRole = input.UserRole;
+            existing.IsActive = input.IsActive;
+            existing.PasswordHash = null;      // UpdateAsync keeps the stored hash
+
+            if (!await _userRepository.UpdateAsync(existing)) return NotFound();
             var updatedUser = await _userRepository.GetByIdAsync(id);
 
             return updatedUser is null ? NotFound() : Ok(updatedUser);
         }
 
+        [Authorize(Roles = Roles.Leadership)]
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
+            // Deactivating yourself would lock the last administrator out.
+            if (id == User.CallerId()) return BadRequest("You cannot deactivate your own account.");
+
             return await _userRepository.DeleteAsync(id) ? NoContent() : NotFound();
         }
 
         // Mirrors the CHECK constraint on dbo.[User] so a bad value is a 400, not a 500.
-        private static string? Validate(User input)
+        private static string? Validate(string userRole)
         {
-            if (!CrmEnums.UserRoles.Contains(input.UserRole))
+            if (!CrmEnums.UserRoles.Contains(userRole))
                 return $"UserRole must be one of: {string.Join(", ", CrmEnums.UserRoles)}.";
             return null;
         }

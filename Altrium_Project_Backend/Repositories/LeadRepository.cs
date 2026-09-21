@@ -13,25 +13,28 @@ namespace Altrium_Project_Backend.Repositories
 
         private const string Cols = "lead_id, company_id, contact_id, user_id, lead_name, source, status, score, is_active, created_at, updated_at";
 
-        public async Task<List<Lead>> GetAllAsync()
+        // ownerId null -> every lead (manager / leadership); set -> only the caller's.
+        public async Task<List<Lead>> GetAllAsync(int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.Leads WHERE is_active = 1 ORDER BY lead_id;";
+            var sql = $"SELECT {Cols} FROM dbo.Leads WHERE is_active = 1 AND (@owner IS NULL OR user_id = @owner) ORDER BY lead_id;";
             var list = new List<Lead>();
             await using var conn = _factory.Create();
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
             while (await r.ReadAsync()) list.Add(Map(r));
             return list;
         }
 
-        public async Task<Lead?> GetByIdAsync(int id)
+        public async Task<Lead?> GetByIdAsync(int id, int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.Leads WHERE lead_id=@id AND is_active = 1;";
+            var sql = $"SELECT {Cols} FROM dbo.Leads WHERE lead_id=@id AND is_active = 1 AND (@owner IS NULL OR user_id = @owner);";
             await using var conn = _factory.Create();
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
             return await r.ReadAsync() ? Map(r) : null;
         }

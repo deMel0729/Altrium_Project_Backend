@@ -13,25 +13,32 @@ namespace Altrium_Project_Backend.Repositories
 
         private const string Cols = "contact_id, company_id, contact_name, email, position, phone_num, is_active, created_at";
 
-        public async Task<List<Contact>> GetAllAsync()
+        // A contact has no owner column of its own - it belongs to a company, so a rep
+        // sees exactly the contacts of the companies they own.
+        private const string OwnerScope =
+            " AND (@owner IS NULL OR company_id IN (SELECT company_id FROM dbo.Company WHERE user_id = @owner AND is_active = 1))";
+
+        public async Task<List<Contact>> GetAllAsync(int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.Contact WHERE is_active = 1 ORDER BY contact_id;";
+            var sql = $"SELECT {Cols} FROM dbo.Contact WHERE is_active = 1{OwnerScope} ORDER BY contact_id;";
             var list = new List<Contact>();
             await using var conn = _factory.Create();
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
             while (await r.ReadAsync()) list.Add(Map(r));
             return list;
         }
 
-        public async Task<Contact?> GetByIdAsync(int id)
+        public async Task<Contact?> GetByIdAsync(int id, int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.Contact WHERE contact_id=@id AND is_active = 1;";
+            var sql = $"SELECT {Cols} FROM dbo.Contact WHERE contact_id=@id AND is_active = 1{OwnerScope};";
             await using var conn = _factory.Create();
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
             return await r.ReadAsync() ? Map(r) : null;
         }

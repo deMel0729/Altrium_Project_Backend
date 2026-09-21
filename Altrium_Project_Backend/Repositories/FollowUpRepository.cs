@@ -13,25 +13,29 @@ namespace Altrium_Project_Backend.Repositories
 
         private const string Cols = "follow_up_id, user_id, deal_id, company_id, lead_id, due_date, note, completed, is_active, created_at";
 
-        public async Task<List<FollowUp>> GetAllAsync()
+        // ownerId null -> every follow-up (manager / leadership); set -> only the
+        // caller's, which is also what makes the "My follow-ups" list correct.
+        public async Task<List<FollowUp>> GetAllAsync(int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.follow_ups WHERE is_active = 1 ORDER BY follow_up_id;";
+            var sql = $"SELECT {Cols} FROM dbo.follow_ups WHERE is_active = 1 AND (@owner IS NULL OR user_id = @owner) ORDER BY follow_up_id;";
             var list = new List<FollowUp>();
             await using var conn = _factory.Create();
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
             while (await r.ReadAsync()) list.Add(Map(r));
             return list;
         }
 
-        public async Task<FollowUp?> GetByIdAsync(int id)
+        public async Task<FollowUp?> GetByIdAsync(int id, int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.follow_ups WHERE follow_up_id=@id AND is_active = 1;";
+            var sql = $"SELECT {Cols} FROM dbo.follow_ups WHERE follow_up_id=@id AND is_active = 1 AND (@owner IS NULL OR user_id = @owner);";
             await using var conn = _factory.Create();
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
             return await r.ReadAsync() ? Map(r) : null;
         }

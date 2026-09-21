@@ -1,12 +1,15 @@
-﻿//written by dew
+//written by dew
 using Altrium_Project_Backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Altrium_Project_Backend.Models;
 using Altrium_Project_Backend.Data;
+using Altrium_Project_Backend.Security;
+using Microsoft.AspNetCore.Authorization;
 namespace Altrium_Project_Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class DealsController : ControllerBase
     {
         private readonly IDealRepository _dealRepository;
@@ -15,14 +18,18 @@ namespace Altrium_Project_Backend.Controllers
         [HttpGet]
         public async Task<ActionResult<List<Deal>>> GetAll()
         {
-            var deals = await _dealRepository.GetAllAsync();
+            // A rep gets their own pipeline, a manager gets all of it. The decision is
+            // made from the token and applied inside the SQL query.
+            var deals = await _dealRepository.GetAllAsync(User.OwnerFilter());
             return deals is null ? NotFound() : Ok(deals);
         }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<Deal>> GetById(int id)
         {
-            var item = await _dealRepository.GetByIdAsync(id);
+            // 404 rather than 403 for someone else's deal: it refuses without
+            // confirming that the record exists.
+            var item = await _dealRepository.GetByIdAsync(id, User.OwnerFilter());
             return item is null ? NotFound() : Ok(item);
         }
 
@@ -31,6 +38,10 @@ namespace Altrium_Project_Backend.Controllers
         {
             var invalid = Validate(input);
             if (invalid is not null) return BadRequest(invalid);
+
+            // The owner comes from the token. A rep can only create their own deals;
+            // a manager may assign one to a rep.
+            input.UserId = User.OwnerForNewRecord(input.UserId);
 
             input.Id = await _dealRepository.CreateAsync(input);
             return CreatedAtAction(nameof(GetById), new { id = input.Id }, input);
@@ -44,8 +55,18 @@ namespace Altrium_Project_Backend.Controllers
             var invalid = Validate(input);
             if (invalid is not null) return BadRequest(invalid);
 
+            // Load it under the caller's scope first: if they cannot see it, they
+            // cannot change it either.
+            var existing = await _dealRepository.GetByIdAsync(id, User.OwnerFilter());
+            if (existing is null) return NotFound();
+
+            // A rep cannot hand their deal to someone else; a manager can reassign it.
+            input.UserId = User.SeesEverything()
+                ? (input.UserId > 0 ? input.UserId : existing.UserId)
+                : existing.UserId;
+
             if (!await _dealRepository.UpdateAsync(input)) return NotFound();
-            var updatedDeal = await _dealRepository.GetByIdAsync(id);
+            var updatedDeal = await _dealRepository.GetByIdAsync(id, User.OwnerFilter());
 
             return updatedDeal is null ? NotFound() : Ok(updatedDeal);
         }
@@ -53,6 +74,9 @@ namespace Altrium_Project_Backend.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
+            var existing = await _dealRepository.GetByIdAsync(id, User.OwnerFilter());
+            if (existing is null) return NotFound();
+
             return await _dealRepository.DeleteAsync(id) ? NoContent() : NotFound();
         }
 

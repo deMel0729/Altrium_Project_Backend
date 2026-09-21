@@ -14,25 +14,28 @@ namespace Altrium_Project_Backend.Repositories
         // NOTE: the primary key column is spelled "enagagement_id" in the database.
         private const string Cols = "enagagement_id, user_id, company_id, deal_id, engagement_name, engagement_type, engagement_description, is_active, created_at";
 
-        public async Task<List<Engagement>> GetAllAsync()
+        // ownerId null -> every engagement (manager / leadership); set -> only the caller's.
+        public async Task<List<Engagement>> GetAllAsync(int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.Engagement WHERE is_active = 1 ORDER BY enagagement_id;";
+            var sql = $"SELECT {Cols} FROM dbo.Engagement WHERE is_active = 1 AND (@owner IS NULL OR user_id = @owner) ORDER BY enagagement_id;";
             var list = new List<Engagement>();
             await using var conn = _factory.Create();
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
             while (await r.ReadAsync()) list.Add(Map(r));
             return list;
         }
 
-        public async Task<Engagement?> GetByIdAsync(int id)
+        public async Task<Engagement?> GetByIdAsync(int id, int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.Engagement WHERE enagagement_id=@id AND is_active = 1;";
+            var sql = $"SELECT {Cols} FROM dbo.Engagement WHERE enagagement_id=@id AND is_active = 1 AND (@owner IS NULL OR user_id = @owner);";
             await using var conn = _factory.Create();
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
             return await r.ReadAsync() ? Map(r) : null;
         }

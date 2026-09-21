@@ -4,8 +4,9 @@ namespace Altrium_Project_Backend.Repositories.Interfaces
 {
     public interface ILeadRepository
     {
-        Task<List<Lead>> GetAllAsync();
-        Task<Lead?> GetByIdAsync(int id);
+        // ownerId: null = every row (manager / leadership), a user id = that user's rows only.
+        Task<List<Lead>> GetAllAsync(int? ownerId);
+        Task<Lead?> GetByIdAsync(int id, int? ownerId);
         Task<int> CreateAsync(Lead l);
         Task<bool> UpdateAsync(Lead l);
         Task<bool> DeleteAsync(int id);

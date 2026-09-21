@@ -85,6 +85,61 @@ namespace Altrium_Project_Backend.Repositories
             return await cmd.ExecuteNonQueryAsync() > 0;
         }
 
+        // --- authentication ---------------------------------------------------
+
+        // The only query in the codebase that selects password_hash. The value never
+        // leaves AuthController: it is compared against and then discarded.
+        public async Task<User?> GetByEmailWithHashAsync(string email)
+        {
+            const string sql = @"
+            SELECT user_id, name, email, password_hash, user_role, is_active, created_at, updated_at
+            FROM dbo.[User] WHERE email = @email;";
+            await using var conn = _factory.Create();
+            await conn.OpenAsync();
+            await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("email", email);
+            await using var r = await cmd.ExecuteReaderAsync();
+            if (!await r.ReadAsync()) return null;
+
+            var user = Map(r);
+            user.PasswordHash = r.GetNullableString("password_hash");
+            return user;
+        }
+
+        public async Task<bool> EmailExistsAsync(string email, int? excludingUserId = null)
+        {
+            const string sql = "SELECT TOP 1 1 FROM dbo.[User] WHERE email = @email AND (@exclude IS NULL OR user_id <> @exclude);";
+            await using var conn = _factory.Create();
+            await conn.OpenAsync();
+            await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("email", email);
+            cmd.Parameters.AddWithValue("exclude", DbHelpers.Nullable(excludingUserId));
+            return await cmd.ExecuteScalarAsync() is not null;
+        }
+
+        public async Task<bool> UpdatePasswordHashAsync(int userId, string passwordHash)
+        {
+            const string sql = "UPDATE dbo.[User] SET password_hash = @hash, updated_at = @updated_at WHERE user_id = @id;";
+            await using var conn = _factory.Create();
+            await conn.OpenAsync();
+            await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("id", userId);
+            cmd.Parameters.AddWithValue("hash", passwordHash);
+            cmd.Parameters.AddWithValue("updated_at", DateTime.UtcNow);
+            return await cmd.ExecuteNonQueryAsync() > 0;
+        }
+
+        // "PBKDF2%" is the format written by PasswordHasher; the rows that pre-date
+        // authentication hold plain text or an empty string and do not match.
+        public async Task<bool> AnyUsablePasswordAsync()
+        {
+            const string sql = "SELECT TOP 1 1 FROM dbo.[User] WHERE password_hash LIKE 'PBKDF2$%';";
+            await using var conn = _factory.Create();
+            await conn.OpenAsync();
+            await using var cmd = new SqlCommand(sql, conn);
+            return await cmd.ExecuteScalarAsync() is not null;
+        }
+
         private static void AddParams(SqlCommand cmd, User u)
         {
             cmd.Parameters.AddWithValue("name", u.Name);

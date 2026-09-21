@@ -13,27 +13,30 @@ namespace Altrium_Project_Backend.Repositories
 
         private const string Cols = "company_id, company_name, industry, website_link, phone_num, addressd, email, user_id, is_active, created_at";
 
-        public async Task<List<Company>> GetAllAsync()
+        // ownerId null -> every company (manager / leadership); set -> only the caller's.
+        public async Task<List<Company>> GetAllAsync(int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.Company WHERE is_active = 1 ORDER BY company_id;";
+            var sql = $"SELECT {Cols} FROM dbo.Company WHERE is_active = 1 AND (@owner IS NULL OR user_id = @owner) ORDER BY company_id;";
             var list = new List<Company>();
             await using var conn = _factory.Create();
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
-            while (await r.ReadAsync()) list.Add(Map(r)); 
+            while (await r.ReadAsync()) list.Add(Map(r));
             return list;
 
-           
+
         }
 
-        public async Task<Company?> GetByIdAsync(int id)
+        public async Task<Company?> GetByIdAsync(int id, int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.Company WHERE company_id=@id AND is_active = 1;";
+            var sql = $"SELECT {Cols} FROM dbo.Company WHERE company_id=@id AND is_active = 1 AND (@owner IS NULL OR user_id = @owner);";
             await using var conn = _factory.Create();
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
             return await r.ReadAsync() ? Map(r) : null;
         }

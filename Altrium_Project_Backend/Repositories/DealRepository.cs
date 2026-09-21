@@ -13,25 +13,31 @@ namespace Altrium_Project_Backend.Repositories
 
         private const string Cols = "deal_id, company_id, contact_id, user_id, lead_id, deal_name, deal_value, stage, expected_close_date, is_active, created_at";
 
-        public async Task<List<Deal>> GetAllAsync()
+        // ownerId null  -> no row filter (manager / leadership)
+        // ownerId set   -> only the caller's own deals (sales rep)
+        // The filter is part of the query on purpose: filtering the list afterwards
+        // would leak every row that any forgotten code path returns unfiltered.
+        public async Task<List<Deal>> GetAllAsync(int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.Deals WHERE is_active = 1 ORDER BY deal_id;";
+            var sql = $"SELECT {Cols} FROM dbo.Deals WHERE is_active = 1 AND (@owner IS NULL OR user_id = @owner) ORDER BY deal_id;";
             var list = new List<Deal>();
             await using var conn = _factory.Create();
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
             while (await r.ReadAsync()) list.Add(Map(r));
             return list;
         }
 
-        public async Task<Deal?> GetByIdAsync(int id)
+        public async Task<Deal?> GetByIdAsync(int id, int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.Deals WHERE deal_id=@id AND is_active = 1;";
+            var sql = $"SELECT {Cols} FROM dbo.Deals WHERE deal_id=@id AND is_active = 1 AND (@owner IS NULL OR user_id = @owner);";
             await using var conn = _factory.Create();
             await conn.OpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("owner", DbHelpers.Nullable(ownerId));
             await using var r = await cmd.ExecuteReaderAsync();
             return await r.ReadAsync() ? Map(r) : null;
         }

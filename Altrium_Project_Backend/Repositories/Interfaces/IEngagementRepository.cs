@@ -4,8 +4,9 @@ namespace Altrium_Project_Backend.Repositories.Interfaces
 {
     public interface IEngagementRepository
     {
-        Task<List<Engagement>> GetAllAsync();
-        Task<Engagement?> GetByIdAsync(int id);
+        // ownerId: null = every row (manager / leadership), a user id = that user's rows only.
+        Task<List<Engagement>> GetAllAsync(int? ownerId);
+        Task<Engagement?> GetByIdAsync(int id, int? ownerId);
         Task<int> CreateAsync(Engagement e);
         Task<bool> UpdateAsync(Engagement e);
         Task<bool> DeleteAsync(int id);
