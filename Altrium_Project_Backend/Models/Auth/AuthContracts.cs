@@ -1,4 +1,4 @@
-// written by malan
+﻿// written by malan
 using System.ComponentModel.DataAnnotations;
 
 namespace Altrium_Project_Backend.Models.Auth
@@ -29,6 +29,17 @@ namespace Altrium_Project_Backend.Models.Auth
 
         [Required]
         public string UserRole { get; set; } = string.Empty;   // must be one of CrmEnums.UserRoles
+    }
+
+    // A user maintaining their own name and email. Role and account status are
+    // deliberately absent: changing those stays with leadership.
+    public class UpdateProfileRequest
+    {
+        [Required, StringLength(100)]
+        public string Name { get; set; } = string.Empty;
+
+        [Required, EmailAddress, StringLength(150)]
+        public string Email { get; set; } = string.Empty;
     }
 
     public class ChangePasswordRequest
@@ -75,7 +86,5 @@ namespace Altrium_Project_Backend.Models.Auth
 
         [Required]
         public string UserRole { get; set; } = string.Empty;
-
-        public bool IsActive { get; set; } = true;
     }
 }

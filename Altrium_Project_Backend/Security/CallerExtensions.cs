@@ -1,4 +1,4 @@
-// written by malan
+﻿// written by malan
 using System.Security.Claims;
 using Altrium_Project_Backend.Data;
 
@@ -20,6 +20,9 @@ namespace Altrium_Project_Backend.Security
 
         public static bool SeesEverything(this ClaimsPrincipal user) =>
             Roles.SeesEverything(user.CallerRole());
+
+        public static bool IsLeadership(this ClaimsPrincipal user) =>
+            string.Equals(user.CallerRole(), Roles.Leadership, StringComparison.OrdinalIgnoreCase);
 
         // The single value that every scoped repository call takes:
         //   null    -> no row filter (manager / leadership)

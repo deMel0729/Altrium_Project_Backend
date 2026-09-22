@@ -13,10 +13,11 @@ namespace Altrium_Project_Backend.Repositories
 
         private const string Cols = "company_id, company_name, industry, website_link, phone_num, addressd, email, user_id, is_active, created_at";
 
-        // ownerId null -> every company (manager / leadership); set -> only the caller's.
+        // ownerId null -> every company (manager / leadership). Set -> the accounts
+        // that rep has been assigned work at; see Scopes.VisibleCompanyIds.
         public async Task<List<Company>> GetAllAsync(int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.Company WHERE is_active = 1 AND (@owner IS NULL OR user_id = @owner) ORDER BY company_id;";
+            var sql = $"SELECT {Cols} FROM dbo.Company WHERE is_active = 1{Scopes.CompanyScope} ORDER BY company_id;";
             var list = new List<Company>();
             await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
@@ -30,7 +31,7 @@ namespace Altrium_Project_Backend.Repositories
 
         public async Task<Company?> GetByIdAsync(int id, int? ownerId)
         {
-            var sql = $"SELECT {Cols} FROM dbo.Company WHERE company_id=@id AND is_active = 1 AND (@owner IS NULL OR user_id = @owner);";
+            var sql = $"SELECT {Cols} FROM dbo.Company WHERE company_id=@id AND is_active = 1{Scopes.CompanyScope};";
             await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
@@ -68,10 +69,11 @@ namespace Altrium_Project_Backend.Repositories
 
         public async Task<bool> DeleteAsync(int id)
         {
-            const string sql = "UPDATE dbo.Company SET is_active = 0 WHERE company_id=@id;";
+            const string sql = "UPDATE dbo.Company SET is_active = 0, deleted_at = @deleted_at WHERE company_id=@id;";
             await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("deleted_at", DateTime.UtcNow);
             return await cmd.ExecuteNonQueryAsync() > 0;
         }
 

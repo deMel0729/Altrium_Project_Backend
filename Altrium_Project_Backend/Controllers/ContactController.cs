@@ -1,7 +1,8 @@
-//Written by Shahmi//
+﻿//Written by Shahmi//
 using Altrium_Project_Backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Altrium_Project_Backend.Models;
+using Altrium_Project_Backend.Data;
 using Altrium_Project_Backend.Security;
 using Microsoft.AspNetCore.Authorization;
 namespace Altrium_Project_Backend.Controllers
@@ -42,6 +43,9 @@ namespace Altrium_Project_Backend.Controllers
             if (!await CanUseCompany(input.CompanyId))
                 return BadRequest("That company does not exist or is not yours.");
 
+            // Records are always created live; is_active is owned by the Delete endpoint.
+            input.IsActive = true;
+
             input.Id = await _contactRepository.CreateAsync(input);
             return CreatedAtAction(nameof(GetById), new { id = input.Id }, input);
         }
@@ -58,12 +62,16 @@ namespace Altrium_Project_Backend.Controllers
             if (!await CanUseCompany(input.CompanyId))
                 return BadRequest("That company does not exist or is not yours.");
 
+            // Never take is_active from the body: an omitted value would archive the row.
+            input.IsActive = existing.IsActive;
+
             if (!await _contactRepository.UpdateAsync(input)) return NotFound();
             var updatedContact = await _contactRepository.GetByIdAsync(id, User.OwnerFilter());
 
             return updatedContact is null ? NotFound() : Ok(updatedContact);
         }
 
+        [Authorize(Roles = Roles.ManagerOrLeadership)]
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {

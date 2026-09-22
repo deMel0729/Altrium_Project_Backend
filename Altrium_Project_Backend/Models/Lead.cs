@@ -10,7 +10,6 @@ namespace Altrium_Project_Backend.Models
         public string LeadName { get; set; } = string.Empty;
         public string Source { get; set; } = string.Empty;
         public string Status { get; set; } = "New";   // CrmEnums.LeadStatuses
-        public int Score { get; set; }                // 0 - 100
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

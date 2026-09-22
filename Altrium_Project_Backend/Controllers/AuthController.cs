@@ -1,4 +1,4 @@
-// written by malan
+﻿// written by malan
 using Altrium_Project_Backend.Data;
 using Altrium_Project_Backend.Models;
 using Altrium_Project_Backend.Models.Auth;
@@ -80,6 +80,28 @@ namespace Altrium_Project_Backend.Controllers
 
             user.Id = await _users.CreateAsync(user);
             return CreatedAtAction(nameof(Me), ToCurrentUser(user));
+        }
+
+        // PUT /api/auth/me - a user maintaining their own details. Note what it
+        // cannot touch: role, account status, or anyone else's record.
+        [HttpPut("me")]
+        public async Task<ActionResult<CurrentUser>> UpdateMe(UpdateProfileRequest request)
+        {
+            var me = await _users.GetByIdAsync(User.CallerId());
+            if (me is null) return Unauthorized();
+
+            var email = request.Email.Trim();
+            if (await _users.EmailExistsAsync(email, me.Id))
+                return Conflict(new { message = "That email address is already registered." });
+
+            me.Name = request.Name.Trim();
+            me.Email = email;
+            me.PasswordHash = null;      // UpdateAsync keeps the stored hash
+
+            if (!await _users.UpdateAsync(me)) return NotFound();
+
+            var updated = await _users.GetByIdAsync(me.Id);
+            return updated is null ? NotFound() : Ok(ToCurrentUser(updated));
         }
 
         // POST /api/auth/change-password - a user changing their own password.

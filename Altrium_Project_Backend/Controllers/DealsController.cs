@@ -1,4 +1,4 @@
-//written by dew
+﻿//written by dew
 using Altrium_Project_Backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Altrium_Project_Backend.Models;
@@ -13,7 +13,20 @@ namespace Altrium_Project_Backend.Controllers
     public class DealsController : ControllerBase
     {
         private readonly IDealRepository _dealRepository;
-        public DealsController(IDealRepository dealRepository) => _dealRepository = dealRepository;
+        private readonly ILeadRepository _leadRepository;
+        private readonly IUserRepository _userRepository;
+
+        // Leads: a rep may only raise a deal by converting one assigned to them.
+        // Users: to check the role of whoever a deal is being assigned to.
+        public DealsController(
+            IDealRepository dealRepository,
+            ILeadRepository leadRepository,
+            IUserRepository userRepository)
+        {
+            _dealRepository = dealRepository;
+            _leadRepository = leadRepository;
+            _userRepository = userRepository;
+        }
 
         [HttpGet]
         public async Task<ActionResult<List<Deal>>> GetAll()
@@ -43,6 +56,26 @@ namespace Altrium_Project_Backend.Controllers
             // a manager may assign one to a rep.
             input.UserId = User.OwnerForNewRecord(input.UserId);
 
+            var assignee = await Assignment.ValidateAsync(User, _userRepository, input.UserId, "Deals");
+            if (assignee is not null) return BadRequest(assignee);
+
+            // A rep raises a deal only by converting a lead that is already theirs,
+            // and the deal inherits that lead's company. Without this a rep could
+            // post a deal against any company id and, because account visibility
+            // follows assignment, hand themselves that whole account.
+            if (!User.SeesEverything())
+            {
+                var lead = await _leadRepository.GetByIdAsync(input.LeadId, User.CallerId());
+                if (lead is null)
+                    return BadRequest("A deal has to be converted from a lead assigned to you.");
+
+                input.CompanyId = lead.CompanyId;
+            }
+
+            // Records are always created live. is_active is a soft-delete flag the
+            // API owns - the Delete endpoint sets it, nothing else.
+            input.IsActive = true;
+
             input.Id = await _dealRepository.CreateAsync(input);
             return CreatedAtAction(nameof(GetById), new { id = input.Id }, input);
         }
@@ -65,12 +98,20 @@ namespace Altrium_Project_Backend.Controllers
                 ? (input.UserId > 0 ? input.UserId : existing.UserId)
                 : existing.UserId;
 
+            var assignee = await Assignment.ValidateAsync(User, _userRepository, input.UserId, "Deals");
+            if (assignee is not null) return BadRequest(assignee);
+
+            // Never take is_active from the body: a request that omits it would
+            // deserialise to false and silently archive the record.
+            input.IsActive = existing.IsActive;
+
             if (!await _dealRepository.UpdateAsync(input)) return NotFound();
             var updatedDeal = await _dealRepository.GetByIdAsync(id, User.OwnerFilter());
 
             return updatedDeal is null ? NotFound() : Ok(updatedDeal);
         }
 
+        [Authorize(Roles = Roles.ManagerOrLeadership)]
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {

@@ -11,7 +11,7 @@ namespace Altrium_Project_Backend.Repositories
         private readonly IDbConnectionFactory _factory;
         public LeadRepository(IDbConnectionFactory factory) => _factory = factory;
 
-        private const string Cols = "lead_id, company_id, contact_id, user_id, lead_name, source, status, score, is_active, created_at, updated_at";
+        private const string Cols = "lead_id, company_id, contact_id, user_id, lead_name, source, status, is_active, created_at, updated_at";
 
         // ownerId null -> every lead (manager / leadership); set -> only the caller's.
         public async Task<List<Lead>> GetAllAsync(int? ownerId)
@@ -40,9 +40,9 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<int> CreateAsync(Lead l)
         {
             const string sql = @"
-            INSERT INTO dbo.Leads (company_id, contact_id, user_id, lead_name, source, status, score, is_active, created_at, updated_at)
+            INSERT INTO dbo.Leads (company_id, contact_id, user_id, lead_name, source, status, is_active, created_at, updated_at)
             OUTPUT INSERTED.lead_id
-            VALUES (@company_id, @contact_id, @user_id, @name, @source, @status, @score, @is_active, @created_at, @updated_at);";
+            VALUES (@company_id, @contact_id, @user_id, @name, @source, @status, @is_active, @created_at, @updated_at);";
             await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             AddParams(cmd, l);
@@ -57,7 +57,7 @@ namespace Altrium_Project_Backend.Repositories
             const string sql = @"
             UPDATE dbo.Leads
             SET company_id=@company_id, contact_id=@contact_id, user_id=@user_id, lead_name=@name,
-                source=@source, status=@status, score=@score, is_active=@is_active, updated_at=@updated_at
+                source=@source, status=@status, is_active=@is_active, updated_at=@updated_at
             WHERE lead_id=@id;";
             await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
@@ -69,10 +69,11 @@ namespace Altrium_Project_Backend.Repositories
 
         public async Task<bool> DeleteAsync(int id)
         {
-            const string sql = "UPDATE dbo.Leads SET is_active = 0, updated_at = @updated_at WHERE lead_id=@id;";
+            const string sql = "UPDATE dbo.Leads SET is_active = 0, deleted_at = @deleted_at, updated_at = @updated_at WHERE lead_id=@id;";
             await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("deleted_at", DateTime.UtcNow);
             cmd.Parameters.AddWithValue("updated_at", DateTime.UtcNow);
             return await cmd.ExecuteNonQueryAsync() > 0;
         }
@@ -85,7 +86,6 @@ namespace Altrium_Project_Backend.Repositories
             cmd.Parameters.AddWithValue("name", l.LeadName);
             cmd.Parameters.AddWithValue("source", l.Source);
             cmd.Parameters.AddWithValue("status", l.Status);
-            cmd.Parameters.AddWithValue("score", l.Score);
             cmd.Parameters.AddWithValue("is_active", l.IsActive);
         }
 
@@ -98,7 +98,6 @@ namespace Altrium_Project_Backend.Repositories
             LeadName = r.GetStringCol("lead_name"),
             Source = r.GetStringCol("source"),
             Status = r.GetStringCol("status"),
-            Score = r.GetIntCol("score"),
             IsActive = r.GetBoolCol("is_active"),
             CreatedAt = r.GetDateTimeCol("created_at"),
             UpdatedAt = r.GetDateTimeCol("updated_at")

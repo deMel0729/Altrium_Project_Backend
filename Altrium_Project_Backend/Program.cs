@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Altrium_Project_Backend.Data;
 using Altrium_Project_Backend.Repositories;
 using Altrium_Project_Backend.Repositories.Interfaces;
@@ -121,6 +121,7 @@ builder.Services.AddScoped<IDealRepository, DealRepository>();
 builder.Services.AddScoped<IEngagementRepository, EngagementRepository>();
 builder.Services.AddScoped<IFollowUpRepository, FollowUpRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IArchiveRepository, ArchiveRepository>();
 
 
 

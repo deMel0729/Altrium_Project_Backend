@@ -29,7 +29,23 @@ namespace Altrium_Project_Backend.Data
 
         public DbConnectionFactory(IConfiguration configuration)
         {
-            _connectionString = configuration.GetConnectionString("Db") ?? throw new InvalidOperationException("Connection string 'Db' not found.");
+            // Blank in appsettings.json on purpose: it carries a password, and a
+            // password committed to source control has to be treated as public.
+            // An empty value counts as missing - otherwise the app starts and then
+            // fails later with an opaque SQL login error instead of saying why.
+            _connectionString = configuration.GetConnectionString("Db") ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(_connectionString))
+            {
+                throw new InvalidOperationException(
+                    "Connection string 'Db' is not configured.\n" +
+                    "Set it in one of these places:\n" +
+                    "  - local development:\n" +
+                    "      cd Altrium_Project_Backend\\Altrium_Project_Backend\n" +
+                    "      dotnet user-secrets set \"ConnectionStrings:Db\" \"<connection string>\"\n" +
+                    "  - Azure: App Service > Settings > Environment variables > ConnectionStrings__Db\n" +
+                    "Never put it back in appsettings.json - that file is in git.");
+            }
         }
 
         public SqlConnection Create() => new SqlConnection(_connectionString);

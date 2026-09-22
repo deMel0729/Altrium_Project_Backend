@@ -67,10 +67,11 @@ namespace Altrium_Project_Backend.Repositories
 
         public async Task<bool> DeleteAsync(int id)
         {
-            const string sql = "UPDATE dbo.follow_ups SET is_active = 0 WHERE follow_up_id=@id;";
+            const string sql = "UPDATE dbo.follow_ups SET is_active = 0, deleted_at = @deleted_at WHERE follow_up_id=@id;";
             await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("deleted_at", DateTime.UtcNow);
             return await cmd.ExecuteNonQueryAsync() > 0;
         }
 

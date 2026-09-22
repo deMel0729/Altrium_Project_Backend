@@ -12,7 +12,7 @@ namespace Altrium_Project_Backend.Repositories
         public EngagementRepository(IDbConnectionFactory factory) => _factory = factory;
 
         // NOTE: the primary key column is spelled "enagagement_id" in the database.
-        private const string Cols = "enagagement_id, user_id, company_id, deal_id, engagement_name, engagement_type, engagement_description, is_active, created_at";
+        private const string Cols = "enagagement_id, user_id, company_id, deal_id, lead_id, engagement_name, engagement_type, engagement_description, is_active, created_at";
 
         // ownerId null -> every engagement (manager / leadership); set -> only the caller's.
         public async Task<List<Engagement>> GetAllAsync(int? ownerId)
@@ -41,9 +41,9 @@ namespace Altrium_Project_Backend.Repositories
         public async Task<int> CreateAsync(Engagement e)
         {
             const string sql = @"
-            INSERT INTO dbo.Engagement (user_id, company_id, deal_id, engagement_name, engagement_type, engagement_description, is_active, created_at)
+            INSERT INTO dbo.Engagement (user_id, company_id, deal_id, lead_id, engagement_name, engagement_type, engagement_description, is_active, created_at)
             OUTPUT INSERTED.enagagement_id
-            VALUES (@user_id, @company_id, @deal_id, @name, @type, @description, @is_active, @created_at);";
+            VALUES (@user_id, @company_id, @deal_id, @lead_id, @name, @type, @description, @is_active, @created_at);";
             await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             AddParams(cmd, e);
@@ -55,7 +55,7 @@ namespace Altrium_Project_Backend.Repositories
         {
             const string sql = @"
             UPDATE dbo.Engagement
-            SET user_id=@user_id, company_id=@company_id, deal_id=@deal_id, engagement_name=@name,
+            SET user_id=@user_id, company_id=@company_id, deal_id=@deal_id, lead_id=@lead_id, engagement_name=@name,
                 engagement_type=@type, engagement_description=@description, is_active=@is_active
             WHERE enagagement_id=@id;";
             await using var conn = await _factory.CreateOpenAsync();
@@ -67,10 +67,11 @@ namespace Altrium_Project_Backend.Repositories
 
         public async Task<bool> DeleteAsync(int id)
         {
-            const string sql = "UPDATE dbo.Engagement SET is_active = 0 WHERE enagagement_id=@id;";
+            const string sql = "UPDATE dbo.Engagement SET is_active = 0, deleted_at = @deleted_at WHERE enagagement_id=@id;";
             await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("deleted_at", DateTime.UtcNow);
             return await cmd.ExecuteNonQueryAsync() > 0;
         }
 
@@ -78,7 +79,8 @@ namespace Altrium_Project_Backend.Repositories
         {
             cmd.Parameters.AddWithValue("user_id", e.UserId);
             cmd.Parameters.AddWithValue("company_id", e.CompanyId);
-            cmd.Parameters.AddWithValue("deal_id", e.DealId);
+            cmd.Parameters.AddWithValue("deal_id", DbHelpers.Nullable(e.DealId));
+            cmd.Parameters.AddWithValue("lead_id", DbHelpers.Nullable(e.LeadId));
             cmd.Parameters.AddWithValue("name", e.EngagementName);
             cmd.Parameters.AddWithValue("type", e.EngagementType);
             cmd.Parameters.AddWithValue("description", e.EngagementDescription);
@@ -90,7 +92,8 @@ namespace Altrium_Project_Backend.Repositories
             Id = r.GetIntCol("enagagement_id"),
             UserId = r.GetIntCol("user_id"),
             CompanyId = r.GetIntCol("company_id"),
-            DealId = r.GetIntCol("deal_id"),
+            DealId = r.GetNullableInt("deal_id"),
+            LeadId = r.GetNullableInt("lead_id"),
             EngagementName = r.GetStringCol("engagement_name"),
             EngagementType = r.GetStringCol("engagement_type"),
             EngagementDescription = r.GetStringCol("engagement_description"),

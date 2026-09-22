@@ -1,4 +1,4 @@
-// written by malan
+﻿// written by malan
 using Altrium_Project_Backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Altrium_Project_Backend.Models;
@@ -13,7 +13,15 @@ namespace Altrium_Project_Backend.Controllers
     public class LeadsController : ControllerBase
     {
         private readonly ILeadRepository _leadRepository;
-        public LeadsController(ILeadRepository leadRepository) => _leadRepository = leadRepository;
+        private readonly IUserRepository _userRepository;
+
+        // Users are read here to check the role of whoever a lead is being
+        // assigned to - a manager may not hand work upwards.
+        public LeadsController(ILeadRepository leadRepository, IUserRepository userRepository)
+        {
+            _leadRepository = leadRepository;
+            _userRepository = userRepository;
+        }
 
         [HttpGet]
         public async Task<ActionResult<List<Lead>>> GetAll()
@@ -29,6 +37,10 @@ namespace Altrium_Project_Backend.Controllers
             return item is null ? NotFound() : Ok(item);
         }
 
+        // Managers create leads and assign them to a rep. If reps could create
+        // leads they could point one at any company and grant themselves access
+        // to that account, because visibility follows assignment.
+        [Authorize(Roles = Roles.ManagerOrLeadership)]
         [HttpPost]
         public async Task<ActionResult<Lead>> Create(Lead input)
         {
@@ -37,6 +49,13 @@ namespace Altrium_Project_Backend.Controllers
 
             // "Assign lead to a rep" is a manager's job; a rep's leads are their own.
             input.UserId = User.OwnerForNewRecord(input.UserId);
+
+            var assignee = await Assignment.ValidateAsync(User, _userRepository, input.UserId, "Leads");
+            if (assignee is not null) return BadRequest(assignee);
+
+            // Records are always created live. is_active is a soft-delete flag the
+            // API owns - the Delete endpoint sets it, nothing else.
+            input.IsActive = true;
 
             input.Id = await _leadRepository.CreateAsync(input);
             return CreatedAtAction(nameof(GetById), new { id = input.Id }, input);
@@ -57,12 +76,20 @@ namespace Altrium_Project_Backend.Controllers
                 ? (input.UserId > 0 ? input.UserId : existing.UserId)
                 : existing.UserId;
 
+            var assignee = await Assignment.ValidateAsync(User, _userRepository, input.UserId, "Leads");
+            if (assignee is not null) return BadRequest(assignee);
+
+            // Never take is_active from the body: a request that omits it would
+            // deserialise to false and silently archive the record.
+            input.IsActive = existing.IsActive;
+
             if (!await _leadRepository.UpdateAsync(input)) return NotFound();
             var updatedLead = await _leadRepository.GetByIdAsync(id, User.OwnerFilter());
 
             return updatedLead is null ? NotFound() : Ok(updatedLead);
         }
 
+        [Authorize(Roles = Roles.ManagerOrLeadership)]
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -77,8 +104,6 @@ namespace Altrium_Project_Backend.Controllers
         {
             if (!CrmEnums.LeadStatuses.Contains(input.Status))
                 return $"Status must be one of: {string.Join(", ", CrmEnums.LeadStatuses)}.";
-            if (input.Score < 0 || input.Score > 100)
-                return "Score must be between 0 and 100.";
             return null;
         }
     }

@@ -1,4 +1,4 @@
-// written by malan
+﻿// written by malan
 using Altrium_Project_Backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Altrium_Project_Backend.Models;
@@ -16,9 +16,10 @@ namespace Altrium_Project_Backend.Controllers
         private readonly IUserRepository _userRepository;
         public UsersController(IUserRepository userRepository) => _userRepository = userRepository;
 
-        // Reading the team list is fine for everyone signed in - the repository never
-        // selects password_hash, so nothing sensitive is exposed. Owner drop-downs and
-        // the Team page both need it.
+        // The team list is management information: a rep only ever sees their own
+        // records, so it tells them nothing they need and names colleagues they
+        // have no reason to enumerate.
+        [Authorize(Roles = Roles.ManagerOrLeadership)]
         [HttpGet]
         public async Task<ActionResult<List<User>>> GetAll()
         {
@@ -26,6 +27,7 @@ namespace Altrium_Project_Backend.Controllers
             return users is null ? NotFound() : Ok(users);
         }
 
+        [Authorize(Roles = Roles.ManagerOrLeadership)]
         [HttpGet("{id:int}")]
         public async Task<ActionResult<User>> GetById(int id)
         {
@@ -52,7 +54,7 @@ namespace Altrium_Project_Backend.Controllers
                 Name = input.Name.Trim(),
                 Email = email,
                 UserRole = input.UserRole,
-                IsActive = input.IsActive,
+                IsActive = true,        // Delete deactivates; nothing else sets this
                 // No password is set here. The account cannot sign in until leadership
                 // gives it one through POST /api/auth/users/{id}/reset-password, or it
                 // is created directly through POST /api/auth/register.
@@ -83,7 +85,8 @@ namespace Altrium_Project_Backend.Controllers
             existing.Name = input.Name.Trim();
             existing.Email = email;
             existing.UserRole = input.UserRole;
-            existing.IsActive = input.IsActive;
+            // is_active is left alone: deactivating is done through Delete, and
+            // reactivating through the archive screen.
             existing.PasswordHash = null;      // UpdateAsync keeps the stored hash
 
             if (!await _userRepository.UpdateAsync(existing)) return NotFound();

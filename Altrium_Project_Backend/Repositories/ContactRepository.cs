@@ -14,9 +14,8 @@ namespace Altrium_Project_Backend.Repositories
         private const string Cols = "contact_id, company_id, contact_name, email, position, phone_num, is_active, created_at";
 
         // A contact has no owner column of its own - it belongs to a company, so a rep
-        // sees exactly the contacts of the companies they own.
-        private const string OwnerScope =
-            " AND (@owner IS NULL OR company_id IN (SELECT company_id FROM dbo.Company WHERE user_id = @owner AND is_active = 1))";
+        // sees exactly the contacts of the accounts they have been assigned.
+        private const string OwnerScope = Scopes.CompanyScope;
 
         public async Task<List<Contact>> GetAllAsync(int? ownerId)
         {
@@ -70,10 +69,11 @@ namespace Altrium_Project_Backend.Repositories
 
         public async Task<bool> DeleteAsync(int id)
         {
-            const string sql = "UPDATE dbo.Contact SET is_active = 0 WHERE contact_id=@id;";
+            const string sql = "UPDATE dbo.Contact SET is_active = 0, deleted_at = @deleted_at WHERE contact_id=@id;";
             await using var conn = await _factory.CreateOpenAsync();
             await using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("deleted_at", DateTime.UtcNow);
             return await cmd.ExecuteNonQueryAsync() > 0;
         }
 
